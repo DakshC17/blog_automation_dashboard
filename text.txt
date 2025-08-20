@@ -2,3 +2,6 @@ python -m http.server 5500
 
 
 "this command will run the dahsboard"
+
+
+will connect with the original dahsboard 
