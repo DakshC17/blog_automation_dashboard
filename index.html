@@ -2,102 +2,52 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Content Submission Dashboard</title>
-  <!-- Tailwind CSS CDN -->
+  <title>Connect WordPress</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 font-sans">
-
-  <div class="min-h-screen flex items-center justify-center">
-    <div class="bg-white shadow-lg rounded-2xl p-8 w-full max-w-xl">
-      <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Content Submission Dashboard</h1>
-
-      <form id="rowForm" class="space-y-4">
-
-
-        <div>
-          <label class="block text-gray-700 font-medium">Site URL</label>
-          <input type="url" id="site_url" placeholder="https://example.com" class="w-full mt-1 p-2 border rounded-lg" required>
-        </div>
-
-        <div>
-          <label class="block text-gray-700 font-medium">Topic</label>
-          <input type="text" id="topic" placeholder="AI, Tech, etc." class="w-full mt-1 p-2 border rounded-lg" required>
-        </div>
-
-        <div>
-          <label class="block text-gray-700 font-medium">Category</label>
-          <input type="text" id="category" placeholder="Tech, Education, etc." class="w-full mt-1 p-2 border rounded-lg" required>
-        </div>
-
-        <div>
-          <label class="block text-gray-700 font-medium">Word Count</label>
-          <input type="number" id="word_count" placeholder="1200" class="w-full mt-1 p-2 border rounded-lg" required>
-        </div>
-
-        <div>
-          <label class="block text-gray-700 font-medium">Tone</label>
-          <input type="text" id="tone" placeholder="Formal, Informal" class="w-full mt-1 p-2 border rounded-lg" required>
-        </div>
-
-        <div>
-          <label class="block text-gray-700 font-medium">WP Site URL</label>
-          <input type="url" id="wpsiteurl" placeholder="https://mywpsite.com" class="w-full mt-1 p-2 border rounded-lg" required>
-        </div>
-
-        <div>
-          <label class="block text-gray-700 font-medium">WP Username</label>
-          <input type="text" id="wpusername" class="w-full mt-1 p-2 border rounded-lg" required>
-        </div>
-
-        <div>
-          <label class="block text-gray-700 font-medium">WP Password</label>
-          <input type="password" id="wppassword" class="w-full mt-1 p-2 border rounded-lg" required>
-        </div>
-
-        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mt-4 transition duration-300">
-          Submit
-        </button>
-
-      </form>
-
-      <p id="response" class="mt-4 text-center text-gray-700 font-medium"></p>
-    </div>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+  <div class="bg-white p-8 shadow rounded-xl w-full max-w-md">
+    <h1 class="text-2xl font-bold mb-6 text-center">Connect WordPress</h1>
+    <form id="connectForm" class="space-y-4">
+      <input type="text" id="wpsiteurl" placeholder="WP Site URL" class="w-full border p-2 rounded" required>
+      <input type="text" id="wpusername" placeholder="WP Username" class="w-full border p-2 rounded" required>
+      <input type="password" id="wppassword" placeholder="WP Password" class="w-full border p-2 rounded" required>
+      <button type="submit" class="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700">Connect</button>
+    </form>
+    <p id="response" class="text-center mt-4"></p>
   </div>
 
-  <!-- JS for sending data to n8n -->
   <script>
-    const form = document.getElementById("rowForm");
+    const form = document.getElementById("connectForm");
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
 
       const payload = {
-        site_url: document.getElementById("site_url").value,
-        topic: document.getElementById("topic").value,
-        category: document.getElementById("category").value,
-        word_count: document.getElementById("word_count").value,
-        tone: document.getElementById("tone").value,
         wpsiteurl: document.getElementById("wpsiteurl").value,
         wpusername: document.getElementById("wpusername").value,
         wppassword: document.getElementById("wppassword").value
       };
 
       try {
-        const res = await fetch("https://my-n8n-zziy.onrender.com/webhook/ui-insert-row", {
+        const res = await fetch("https://my-n8n-zziy.onrender.com/webhook-test/save-wp-creds", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
         const data = await res.json();
-        document.getElementById("response").innerText = "Success! Wait for Couple of minutes for blog to publish" ;
-        form.reset();
+        if (data.status === "ok") {
+          localStorage.setItem("user_token", data.user_token); // save token
+          document.getElementById("response").innerText = "Connected! Token saved.";
+        } else {
+          document.getElementById("response").innerText = "Error: " + data.message;
+        }
       } catch (err) {
         document.getElementById("response").innerText = "Error: " + err.message;
       }
     });
   </script>
-
 </body>
 </html>
+
+
