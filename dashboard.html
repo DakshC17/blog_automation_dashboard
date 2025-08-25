@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard — Fill the Sheet</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-3xl bg-white rounded-2xl shadow p-8">
+    <h1 class="text-2xl font-semibold mb-4">Welcome to your Blog Scheduler</h1>
+
+    <div id="tokenBox" class="mb-6 p-4 bg-blue-50 rounded border">
+      <p class="text-sm text-gray-700">You are logged in as:</p>
+      <p id="tokenText" class="font-mono mt-1 text-sm text-gray-900"></p>
+      <p class="text-xs text-gray-500 mt-2">
+        This token links your saved WordPress credentials to the sheet you will fill.
+      </p>
+    </div>
+
+    <div class="mb-6">
+      <h2 class="font-semibold">How the sheet works (what to fill)</h2>
+      <ul class="list-disc ml-5 mt-3 text-sm text-gray-700 space-y-2">
+        <li><strong>Header names must be exact</strong> (first row):  
+          <div class="mt-2 font-mono text-xs bg-gray-50 p-2 rounded">
+            row_number | Site URL | Topic | Category | Word Count | Publish Date | Publish Time | tone | published_url | status
+          </div>
+        </li>
+        <li><strong>Publish Date</strong>: YYYY-MM-DD (example: <code>2025-09-02</code>).</li>
+        <li><strong>Publish Time</strong>: 24-hour HH:MM (example: <code>14:30</code>).</li>
+        <li><strong>status</strong>: keep empty — workflow will update to <code>published</code>.</li>
+        <li><strong>published_url</strong>: leave empty — workflow will fill it with the live post URL.</li>
+        <li><strong>Important:</strong> Share the sheet with the Google account your n8n workflow uses.</li>
+      </ul>
+    </div>
+
+    <div class="flex gap-3 items-center">
+      <button id="fillSheetBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+        Fill the Sheet (open template copy)
+      </button>
+
+      <a id="openExisting" class="text-sm text-blue-600 hover:underline cursor-pointer">I already have a sheet (open)</a>
+
+      <!-- ✅ NEW: Save Sheet Button -->
+      <button id="saveSheetBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+        Save my Sheet (paste URL)
+      </button>
+    </div>
+
+    <p id="statusMsg" class="text-xs text-gray-500 mt-4">
+      After you fill multiple rows (a month’s worth), come back here and say <strong>"next"</strong> — I will then show how to connect your sheet to your account so n8n can start scheduling and publishing automatically.
+    </p>
+  </div>
+
+  <script>
+    // Replace with your Google Sheets template ID
+    const TEMPLATE_ID = "1KugivkKohYt4mEXhCj-Gjpf1eb4LHKFNL1UfhWqTLk8";
+    const TEMPLATE_COPY_URL = "https://docs.google.com/spreadsheets/d/" + TEMPLATE_ID + "/copy";
+
+    const userToken = localStorage.getItem("user_token");
+    const tokenText = document.getElementById("tokenText");
+    const tokenBox = document.getElementById("tokenBox");
+    const statusMsg = document.getElementById("statusMsg");
+
+    if (!userToken) {
+      tokenBox.innerHTML = `
+        <p class="text-sm text-red-600">No connection found — please <a href="index.html" class="text-blue-600 underline">connect WordPress</a> first.</p>
+      `;
+      document.getElementById("fillSheetBtn").disabled = true;
+      document.getElementById("fillSheetBtn").classList.add("opacity-60", "cursor-not-allowed");
+    } else {
+      tokenText.innerText = userToken;
+    }
+
+    // Open template copy link
+    document.getElementById("fillSheetBtn").addEventListener("click", () => {
+      if (!TEMPLATE_ID || TEMPLATE_ID === "YOUR_TEMPLATE_SHEET_ID_HERE") {
+        alert("Replace TEMPLATE_ID in this file with your Google Sheets template ID.");
+        return;
+      }
+      window.open(TEMPLATE_COPY_URL, "_blank");
+    });
+
+    // Allow opening existing sheet
+    document.getElementById("openExisting").addEventListener("click", () => {
+      const url = prompt("Paste your Google Sheet URL or ID:");
+      if (!url) return;
+      if (url.includes("docs.google.com")) {
+        window.open(url, "_blank");
+      } else {
+        window.open("https://docs.google.com/spreadsheets/d/" + url, "_blank");
+      }
+    });
+
+    // ✅ Extract sheet ID
+    function getSheetId(input) {
+      if (!input) return null;
+      const match = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (match && match[1]) return match[1];
+      if (/^[a-zA-Z0-9-_]+$/.test(input)) return input;
+      return null;
+    }
+
+    // Show saved sheet if already exists
+    const savedSheetId = localStorage.getItem("sheet_id");
+    if (savedSheetId) {
+      const p = document.createElement("p");
+      p.className = "mt-3 text-sm text-green-700";
+      p.innerHTML = `✅ Saved sheet: <a class="text-blue-600 underline" target="_blank"
+        href="https://docs.google.com/spreadsheets/d/${savedSheetId}/edit">open</a>`;
+      document.querySelector(".flex.gap-3.items-center").after(p);
+    }
+
+    // ✅ Save my Sheet button logic + send to n8n
+    document.getElementById("saveSheetBtn").addEventListener("click", async () => {
+      const input = prompt("Paste your Google Sheet URL or ID:");
+      if (!input) return;
+
+      const sheetId = getSheetId(input.trim());
+      if (!sheetId) {
+        alert("That doesn't look like a valid Google Sheet link or ID.");
+        return;
+      }
+
+      // Save locally
+      localStorage.setItem("sheet_id", sheetId);
+      localStorage.setItem("sheet_url", `https://docs.google.com/spreadsheets/d/${sheetId}/edit`);
+
+      // Save to backend (n8n)
+      try {
+        const res = await fetch("https://my-n8n-zziy.onrender.com/webhook/save-sheet", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_token: userToken,
+            sheet_id: sheetId
+          })
+        });
+
+        if (!res.ok) throw new Error("Server error: " + res.status);
+        const data = await res.json();
+
+        statusMsg.classList.remove("text-gray-500");
+        statusMsg.classList.add("text-green-600");
+        statusMsg.innerText = "✅ Sheet saved and linked with your account!";
+      } catch (err) {
+        statusMsg.classList.remove("text-gray-500");
+        statusMsg.classList.add("text-red-600");
+        statusMsg.innerText = "❌ Error saving sheet: " + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
