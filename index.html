@@ -12,42 +12,72 @@
       <input type="text" id="wpsiteurl" placeholder="WP Site URL" class="w-full border p-2 rounded" required>
       <input type="text" id="wpusername" placeholder="WP Username" class="w-full border p-2 rounded" required>
       <input type="password" id="wppassword" placeholder="WP Password" class="w-full border p-2 rounded" required>
-      <button type="submit" class="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700">Connect</button>
+      <button id="submitBtn" type="submit" class="bg-blue-600 text-white w-full py-2 rounded hover:bg-blue-700 transition">
+        Connect
+      </button>
     </form>
-    <p id="response" class="text-center mt-4"></p>
+    <p id="response" class="text-center mt-4 text-sm text-gray-700"></p>
   </div>
 
   <script>
     const form = document.getElementById("connectForm");
+    const responseBox = document.getElementById("response");
+    const submitBtn = document.getElementById("submitBtn");
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
 
       const payload = {
-        wpsiteurl: document.getElementById("wpsiteurl").value,
-        wpusername: document.getElementById("wpusername").value,
-        wppassword: document.getElementById("wppassword").value
+        wpsiteurl: document.getElementById("wpsiteurl").value.trim(),
+        wpusername: document.getElementById("wpusername").value.trim(),
+        wppassword: document.getElementById("wppassword").value.trim()
       };
 
+      // disable button while request is in progress
+      submitBtn.disabled = true;
+      submitBtn.innerText = "Connecting...";
+      responseBox.innerText = "";
+
       try {
-        const res = await fetch("https://my-n8n-zziy.onrender.com/webhook-test/save-wp-creds", {
+        const res = await fetch("https://my-n8n-zziy.onrender.com/webhook/save-wp-creds", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
 
+        if (!res.ok) {
+          throw new Error(`Server error: ${res.status}`);
+        }
+
         const data = await res.json();
-        if (data.status === "ok") {
-          localStorage.setItem("user_token", data.user_token); // save token
-          document.getElementById("response").innerText = "Connected! Token saved.";
+        console.log("Server Response:", data); // debug log
+
+        // ✅ Support both array or object response
+        const userData = Array.isArray(data) ? data[0] : data;
+
+        if (userData?.user_token) {
+          localStorage.setItem("user_token", userData.user_token);
+          responseBox.classList.remove("text-red-600");
+          responseBox.classList.add("text-green-600");
+          responseBox.innerText = "✅ Connected! Redirecting...";
+
+          // redirect after short delay
+          setTimeout(() => {
+            window.location.href = "dashboard.html";
+          }, 1000);
         } else {
-          document.getElementById("response").innerText = "Error: " + data.message;
+          throw new Error(data.message || "Invalid response from server");
         }
       } catch (err) {
-        document.getElementById("response").innerText = "Error: " + err.message;
+        responseBox.classList.remove("text-green-600");
+        responseBox.classList.add("text-red-600");
+        responseBox.innerText = "❌ Error: " + err.message;
+      } finally {
+        // reset button
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Connect";
       }
     });
   </script>
 </body>
 </html>
-
-
