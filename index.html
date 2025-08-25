@@ -91,7 +91,7 @@
         });
 
         const data = await res.json();
-        document.getElementById("response").innerText = "Success! Response: " + JSON.stringify(data);
+        document.getElementById("response").innerText = "Success! Wait for Couple of minutes for blog to publish" ;
         form.reset();
       } catch (err) {
         document.getElementById("response").innerText = "Error: " + err.message;
